@@ -1,7 +1,57 @@
 <div id="main">
 </div>
+<script src ="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
+<script type="text/javascript" src="http://github.com/joewalnes/smoothie/raw/master/smoothie.js"></script>
+<link href='http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css' rel='stylesheet' type='text/css'>
+<style>
+	.sidebar {
+		position: relative;
+		vertical-align: top;
+		display: inline-block;
+	}
+	.footer {
+		position: relative;
+		vertical-align: bottom;
+		display: inline-block;
+	}
+	.slider {
+		display: inline-block;
+		width: 300px;
+	}
+	.graphs {
+		padding-top: 30px;
+	}
+</style>
 <script src="game.js"></script>
-<canvas width="800" height="800" id="drawing" style="position: relative; border:1px solid #c3c3c3;"></canvas>
+<canvas width="800" height="800" id="drawing" style="display: inline-block; position: relative; border:1px solid #c3c3c3;"></canvas>
+<div class="sidebar">
+
+	<div class="slider">
+		<p>
+			<label for="gravity-amount">Vertical Gravity:</label>
+			<input type="text" id="gravity-amount" style="border:0; color:#f6931f; font-weight:bold;" />
+		</p>
+		<div id="gravity-slider"></div>
+	</div>
+	
+	<div class="slider">
+		<p>
+			<label for="gravity-position">Horizontal Gravity:</label>
+			<input type="text" id="gravity-position" style="border:0; color:#f6931f; font-weight:bold;" />
+		</p>
+		<div id="gravity-pos-slider"></div>
+	</div>
+	
+	<div class="graphs">
+		<canvas id="graph" width="400" height="100" style="border:1px solid #c3c3c3;"></canvas>
+	</div>
+</div>
+<div class="footer">
+	
+
+</div>
+	
 <script>
     //init
     if (window.attachEvent) {window.attachEvent('onload', init);}

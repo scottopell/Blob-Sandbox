@@ -1,40 +1,82 @@
 var canvas; 
 var ctx; 
 var members = [];
-var blib;
-var bloob;
-var ballIdent = 0;
-var RESTI = .85;
-var gravity = .1;
+
+var RESTI = .1;
+var gravity = 0;
 var colors = ['black', 'blue', 'red', 'green', 'brown', 'darkblue', 'gray', 'orange'];
 var hash;
+var velocityLine;
+var gravityPosition = 0;
+$(function() {
+	$( "#gravity-slider" ).slider({
+		value:0,
+		min: -.5,
+		max: .5,
+		step: .01,
+		slide: function( event, ui ) {
+			$( "#gravity-amount" ).val( ui.value );
+			changeGravity(ui.value);
+		}
+	
+	});
+	
 
-var HashMap = function(size) {
-	this.size = size;
+	$("#gravity-pos-slider").slider({
+		value:0,
+		min: -.5,
+		max: .5,
+		step: .01,
+		slide: function (event,ui){
+			$( "#gravity-position").val(ui.value);
+			gravPos(ui.value);
+		}
+	});
+	
+	$( "#gravity-amount" ).val($( "#gravity-slider" ).slider( "value" ) );
+	changeGravity($( "#gravity-slider" ).slider( "value" ));
+	$( "#gravity-position" ).val($( "#gravity-pos-slider" ).slider( "value" ) );
+	changeGravity($( "#gravity-pos-slider" ).slider( "value" ));
+});
+
+
+function gravPos(x){
+
+	gravityPosition = x;
+
+}
+
+function changeGravity(g) {
+	gravity = g;
+}
+
+var HashMap = function(width, m) {
+	this.width = width;
+	this.m = m;
+	this.size = this.width / this.m;
 	this.grid = [];
-	this.keys = [];
-	this.key = function(obj) {
-		vector = obj.pos;
-		return '' + Math.floor(Math.floor(vector.x/size) * size) + ' ' +
-			    Math.floor(Math.floor(vector.y/size) * size);
+	for (var i = 0; i < this.m * this.m; i++)
+		this.grid.push([]);
+	
+	this.key = function(o) {
+		x = (o.pos.x - o.pos.x % this.size) / this.size;
+		y = (o.pos.y - o.pos.x % this.size) / this.size;
+		return y * m + x;
 	}
 	
 	this.insert = function(obj) {
 		key = this.key(obj);
-		if (!this.keys[key])
-			this.keys.push(key);
-		if (!this.grid[key])
+		if (this.grid[key] == undefined)
 			this.grid[key] = [];
-		this.grid[key].push(obj);
-		//console.log(this.grid[key].length);
-		console.log(hash.size());
+		this.grid[key].push(obj.id);
 	}
-	this.remove = function(obj) {
+	this.recalc = function(obj) {
 		key = this.key(obj);
 		cell = this.grid[key];
-		index = cell.indexOf(obj);
-		if (index != -1)
-			cell.splice(index, 1);
+		index = cell.indexOf(obj.id);
+		index = cell.indexOf(obj.id);
+		cell.splice(index, 1);
+		this.insert(obj);
 	}
 	this.query = function(obj) {
 		return this.grid[this.key(obj)];
@@ -43,6 +85,12 @@ var HashMap = function(size) {
 		var size = 0;
 		for (var key in this.grid)
 			if (this.grid.hasOwnProperty(key)) size++;
+		return size;
+	}
+	this.sumSize = function() {
+		var size = 0;
+		for (var key in this.grid)
+			if (this.grid.hasOwnProperty(key)) size += this.grid[key].length;
 		return size;
 	}
 }
@@ -92,14 +140,13 @@ function Vector(x, y) {
 	}
 }
 
-function Blob(x,y){
-    this.id = ballIdent++;
-    this.size = 8;
+function Blob(x,y, id){
+    this.id = id;
+    this.size = 2;
     this.color = colors[Math.floor(Math.random()*colors.length)];
     this.pos = new Vector(x, y);
-    this.v = new Vector(0.0,0.0);
+    this.v = new Vector(0,0);
     this.move = function(){
-
         /*for(var i = 0;i<members.length;i++){
             if (members[i].id != this.id){
                 if (collide(this,members[i])) {
@@ -112,10 +159,14 @@ function Blob(x,y){
             }
         }*/
 		
-		//cell = hash.query(this);
-		//for (var blob in cell)
-		//	if (collide(blob, this))
-		//		resolveCollision(blob, this);
+		cell = hash.query(this);
+		if (cell != undefined) {
+			for (var id in cell) {
+				if (this.id != id)
+					if (collide(members[id], this))
+						resolveCollision(this, members[id]);
+			}		
+		}
 
 		/*c = hash.getClosest(this);
 		for (i = 0; i < c.length; i++)
@@ -130,8 +181,11 @@ function Blob(x,y){
 					resolveCollision(this, cell[i]);
 			} 
 		}*/
-				
+		//this.v.y += gravity;
 		this.v.y += gravity;
+		this.v.x += gravityPosition;
+		//this.v.add(gravityPosition);
+		//console.log(this.v);
 			
 		this.pos.x += this.v.x;
 		this.pos.y += this.v.y;
@@ -161,13 +215,13 @@ function Blob(x,y){
 				//console.log(prev.length() - this.v.length());
 		}
 		
-
+		recalc(this);
     }
     this.draw = function(){
         ctx.beginPath();
         ctx.arc(this.pos.x, this.pos.y, this.size, 0, Math.PI*2, true); 
         //ctx.fillStyle = this.color;
-		MAX = 20;
+		MAX = 10;
 		red = Math.floor(255*Math.abs(this.v.y) / MAX);
 		//console.log(red);
 		green = 255 - red;
@@ -192,7 +246,7 @@ function resolveCollision(b1, b2) {
 
 
 	d = delta.length();
-
+	//console.log(d);
 	if (d != 0.0) {
 		mtd = delta.multiply(((b1.size + b2.size)-d)/d); // minimum translation distance to push balls apart after intersecting
 	}
@@ -204,8 +258,10 @@ function resolveCollision(b1, b2) {
 	// resolve intersection
 	im1 = 1 / (b1.size); // inverse mass quantities
 	im2 = 1 / (b2.size);
-
+	//console.log(mtd.length());
 	// push-pull them apart
+	
+	
 	b1.pos = b1.pos.add(mtd.multiply(im1 / (im1 + im2)));
 	b2.pos = b2.pos.subtract(mtd.multiply(im2 / (im1 + im2)));
 	
@@ -214,10 +270,10 @@ function resolveCollision(b1, b2) {
 	mtd = mtd.normalize();
 	vn = v.dot(mtd);
 	// sphere intersecting but moving away from each other already
-	if (vn > 0.0) return;
+	if (vn > 0) return;
 
 	// collision impulse
-	i = -(1.0 + RESTI * vn) / (im1 + im2);
+	i = -((1.0 + RESTI) * vn) / (im1 + im2);
 	impulse = mtd.multiply(i);
 	// change in momentum
 	//console.log(impulse.length());
@@ -239,19 +295,72 @@ window.requestAnimFrame = (function(){
               };
 })();
 
+function recalc(blob) {
+	hash.recalc(blob);
+}
+//37 - left
+//38 - up
+//39 - right
+//40 - down
+c = 5;
+function keydown(e) {
+	function impulse(vec) {
+	for (var i = 0; i < members.length; i++) {
+		members[i].v = members[i].v.add(vec);
+	}
+}
+	if (e.keyCode >= 37 && e.keyCode <= 40)
+		e.preventDefault();
+	
+	if (e.keyCode == 37) { 
+	  impulse(new Vector(-c, 0));
+	}
+	if (e.keyCode == 38) { 
+	  impulse(new Vector(0, -c));
+	}
+	if (e.keyCode == 39) {
+	  impulse(new Vector(c, 0));
+	}
+	if (e.keyCode == 40) { 
+	  impulse(new Vector(0, c));
+	}
+}
+
+
+
 function init(){
+	smoothie = new SmoothieChart();
+	smoothie.streamTo(document.getElementById("graph"), 1000 /*delay*/); 
+	velocityLine = new TimeSeries();
+	smoothie.addTimeSeries(velocityLine);
+
+	
+	if (document.addEventListener){
+	//document.addEventListener("mouseup",mouseup,false);
+	document.addEventListener("keydown",keydown,false);
+	}
+	else if (document.attachEvent){
+	//document.attachEvent("onmouseup",mouseup);
+	document.attachEvent("onkeydown", keydown);
+	}
+	else{
+	//document.onmouseup = mouseup;
+	document.onkeydown= keydown;
+
+	}
 	
     canvas = document.getElementById("drawing");
     ctx = canvas.getContext('2d');
 
-	hash = new HashMap(canvas.width / 9);
+	hash = new HashMap(canvas.width, 100);
 	
+	gravityPosition = 0; //new Vector(.1,gravity)
+
 	
-    i = 40;
+    i = 500;
     for (i; i > 0; i--) {
-		blob = new Blob(Math.random()*canvas.width*.95 + 16, Math.random()*canvas.height*.95 + 16);
+		blob = new Blob(Math.random()*canvas.width*.95 + 16, Math.random()*canvas.height*.95 + 16, members.length);
 		hash.insert(blob);
-		//console.log(hash.size());
         members.push(blob);
 	}		 
 
@@ -261,10 +370,13 @@ function init(){
 function render(){
 	
     ctx.clearRect(0,0,canvas.width,canvas.height);
+	var sum = 0;
     for(var i = 0;i<members.length;i++){
         members[i].move();
         members[i].draw();
-		
+		sum += members[i].v.length();
     }
+	sum /= members.length;
+	velocityLine.append(new Date().getTime(), sum);
 
 }
