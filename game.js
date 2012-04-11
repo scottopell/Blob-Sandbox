@@ -1,14 +1,39 @@
 var canvas; 
 var ctx; 
 var members = [];
-
 var RESTI = .1;
 var gravity = 0;
 var colors = ['black', 'blue', 'red', 'green', 'brown', 'darkblue', 'gray', 'orange'];
 var hash;
 var velocityLine;
-var gravityPosition = 0;
+var xGravity = 0;
+var gravityPos = false;
+var mouseDown = false;
+var absorb = .1;
+var mouseFunctions = {"spawn":1,"attract":2,"subtract":3,"add":4};
+var MOUSE = mouseFunctions[spawn];
 $(function() {
+
+	 $('#radios').buttonset();
+	 
+	 $('#radios').click(function (){
+		console.log(MOUSE);
+	 });
+	 
+	 
+	 $('#spawn').click(function (){
+		MOUSE = mouseFunctions["spawn"];
+	 });
+	 $('#attract').click(function (){
+		MOUSE = mouseFunctions["attract"];
+	 });
+	$('#subtract').click(function (){
+		MOUSE = mouseFunctions["subtract"];
+	 });
+	 $('#add').click(function (){
+		MOUSE = mouseFunctions["add"];
+	 });
+	
 	$( "#gravity-slider" ).slider({
 		value:0,
 		min: -.5,
@@ -16,7 +41,7 @@ $(function() {
 		step: .01,
 		slide: function( event, ui ) {
 			$( "#gravity-amount" ).val( ui.value );
-			changeGravity(ui.value);
+			changeYGravity(ui.value);
 		}
 	
 	});
@@ -29,25 +54,89 @@ $(function() {
 		step: .01,
 		slide: function (event,ui){
 			$( "#gravity-position").val(ui.value);
-			gravPos(ui.value);
+			changeXGravity(ui.value);
 		}
 	});
 	
 	$( "#gravity-amount" ).val($( "#gravity-slider" ).slider( "value" ) );
-	changeGravity($( "#gravity-slider" ).slider( "value" ));
+	changeYGravity($( "#gravity-slider" ).slider( "value" ));
 	$( "#gravity-position" ).val($( "#gravity-pos-slider" ).slider( "value" ) );
-	changeGravity($( "#gravity-pos-slider" ).slider( "value" ));
+	changeYGravity($( "#gravity-pos-slider" ).slider( "value" ));
+});
+$('#toggle').click(function(){
+ $('.sidebar').toggle();
 });
 
+$('#drawing').mousedown(function(e) {
+   var parentOffset = $(this).parent().offset(); 
+   //or $(this).offset(); if you really just want the current element's offset
+   var relX = e.pageX - parentOffset.left;
+   var relY = e.pageY - parentOffset.top;
+    if (MOUSE == mouseFunctions.spawn)
+	   spawn(relX, relY);
+	else if (MOUSE == mouseFunctions.attract)
+		gravityPos = new Vector(relX, relY);
+	else if (MOUSE == mouseFunctions.subtract)
+		editSize(-1,relX,relY);//call method to reduce current ball's size here
+	else if (MOUSE == mouseFunctions.add)
+		editSize(1,relX,relY);//opposite of above
 
-function gravPos(x){
+   mouseDown = true;
+});
+$('#drawing').mousemove(function(e) {
+   //if (gravityPos != false) {
+	   var parentOffset = $(this).parent().offset(); 
+	   //or $(this).offset(); if you really just want the current element's offset
+	   var relX = e.pageX - parentOffset.left;
+	   var relY = e.pageY - parentOffset.top;
+	    if (MOUSE == mouseFunctions.spawn){
+			if (mouseDown)
+				spawn(relX, relY);
+		}
+		else if (MOUSE == mouseFunctions.attract)
+			gravityPos = new Vector(relX, relY);
+		/*
+		else if (MOUSE == mouseFunctions.subtract)
+			editSize(-1,relX,relY);//call method to reduce current ball's size here
+		else if (MOUSE == mouseFunctions.add)
+			editSize(1,relX,relY);//opposite of above
+		*/
 
-	gravityPosition = x;
+   //}
+});
+$('#drawing').mouseup(function(e) {
+	if (MOUSE != mouseFunctions.attract)
+		gravityPos = false;
+   mouseDown = false;
+});
 
+function editSize(modifier,x,y){
+	for(var i = 0;i<members.length;i++){
+		square_dist = (members[i].pos.x - x) * (members[i].pos.x - x) + (members[i].pos.y - y) * (members[i].pos.y - y);
+		if (square_dist <= members[i].size * members[i].size){
+			members[i].size += modifier;
+		}
+	}
+}
+	
+
+function spawn(x, y) {
+   blob = new Blob(x, y);
+   members.push(blob);
+   hash.insert(blob);
 }
 
-function changeGravity(g) {
-	gravity = g;
+function mouseSet(ui){
+	console.log(ui);
+}
+
+
+function changeXGravity(x){
+	xGravity = x;
+}
+
+function changeYGravity(g) {
+	yGravity = g;
 }
 
 var HashMap = function(width, m) {
@@ -63,7 +152,11 @@ var HashMap = function(width, m) {
 		y = (o.pos.y - o.pos.x % this.size) / this.size;
 		return y * m + x;
 	}
-	
+	this.remove = function(obj) {
+		key = this.key(obj);
+		if (this.grid[key] != undefined)
+			this.grid[key].splice(this.grid[key].indexOf(obj.id), 1);
+	}
 	this.insert = function(obj) {
 		key = this.key(obj);
 		if (this.grid[key] == undefined)
@@ -108,7 +201,10 @@ function Vector(x, y) {
         return new Vector(this.x * val, this.y * val);
     }
     this.dot = function(v) {
-		return (this.x * v.x) + (this.y + v.y);
+		return (this.x * v.x) + (this.y * v.y);
+	}
+	this.vectorMultiply = function(v) {
+		return new Vector(this.x * v.x, this.y * v.y);
 	}
 	this.normalize = function() {
 		l = this.length();
@@ -138,11 +234,16 @@ function Vector(x, y) {
 	this.distance = function(v) {
 		return Math.sqrt((v.x - this.x) * (v.x - this.x) + (v.y - this.y) * (v.y - this.y));
 	}
+	this.direction = function() {
+		x = this.x / Math.abs(x);
+		y = this.y / Math.abs(y);
+		return new Vector(x, y);
+	}
 }
 
 function Blob(x,y, id){
     this.id = id;
-    this.size = 2;
+    this.size = Math.floor(Math.random()*10) + 6;
     this.color = colors[Math.floor(Math.random()*colors.length)];
     this.pos = new Vector(x, y);
     this.v = new Vector(0,0);
@@ -168,27 +269,24 @@ function Blob(x,y, id){
 			}		
 		}
 
-		/*c = hash.getClosest(this);
-		for (i = 0; i < c.length; i++)
-			if (this.id != c[i].id)
-				if (collide(this, c[i]))
-					resolveCollision(this, c[i]);*/
-		//console.log(hash.grid.length);
-		/*for (i = 0; i < hash.grid.length; i++) {
-			cell = grid[i];
-			for (z = 0; z < cell.length; z++) {
-				if (collide(this, cell[i]))
-					resolveCollision(this, cell[i]);
-			} 
-		}*/
-		//this.v.y += gravity;
-		this.v.y += gravity;
-		this.v.x += gravityPosition;
-		//this.v.add(gravityPosition);
-		//console.log(this.v);
+		if (gravityPos != false) {
+			z = this.pos.subtract(gravityPos).direction();
+			g = (xGravity + yGravity) / 2;
+			i = z.multiply(g);
+			//console.log(i.x + ':' + i.y);
+			this.v = this.v.subtract(i);
+
+		}
+		else{
+			this.v.y += yGravity;
+			this.v.x += xGravity;
 			
+		}
+		//this.v.add(xGravity);
+		//console.log(this.v);
 		this.pos.x += this.v.x;
 		this.pos.y += this.v.y;
+
         // Check for collision with walls
 		if (this.pos.x - this.size < 0)
 		{
@@ -244,7 +342,16 @@ function resolveCollision(b1, b2) {
 
 	if (dist2 > r*r) return; // they aren't colliding
 
-
+	if (b1.size > b2.size && (2 * (b1.size + absorb) < canvas.height) && (2 * (b1.size + absorb) < canvas.width) ){
+		b1.size += absorb / 3;
+		b2.size = Math.max(0, b2.size - absorb);
+		//console.log(b1.size + ':' + b2.size);
+		if (b2.size == 0) {
+			hash.remove(b2);
+			members.splice(members.indexOf(b2), 1);
+		}
+	}
+	
 	d = delta.length();
 	//console.log(d);
 	if (d != 0.0) {
@@ -279,6 +386,7 @@ function resolveCollision(b1, b2) {
 	//console.log(impulse.length());
 	b1.v = b1.v.add(impulse.multiply(im1));
 	b2.v = b2.v.subtract(impulse.multiply(im2));
+
 }
 function animloop(){
       requestAnimFrame( animloop );
@@ -329,10 +437,10 @@ function keydown(e) {
 
 
 function init(){
-	smoothie = new SmoothieChart();
-	smoothie.streamTo(document.getElementById("graph"), 1000 /*delay*/); 
-	velocityLine = new TimeSeries();
-	smoothie.addTimeSeries(velocityLine);
+	//smoothie = new SmoothieChart();
+	//smoothie.streamTo(document.getElementById("graph"), 1000 /*delay*/); 
+	//velocityLine = new TimeSeries();
+	//smoothie.addTimeSeries(velocityLine);
 
 	
 	if (document.addEventListener){
@@ -354,15 +462,15 @@ function init(){
 
 	hash = new HashMap(canvas.width, 100);
 	
-	gravityPosition = 0; //new Vector(.1,gravity)
+	xGravity = 0; //new Vector(.1,gravity)
 
 	
-    i = 500;
+    /*i = 50;
     for (i; i > 0; i--) {
 		blob = new Blob(Math.random()*canvas.width*.95 + 16, Math.random()*canvas.height*.95 + 16, members.length);
 		hash.insert(blob);
         members.push(blob);
-	}		 
+	}		*/ 
 
 	
     animloop();
@@ -370,13 +478,14 @@ function init(){
 function render(){
 	
     ctx.clearRect(0,0,canvas.width,canvas.height);
-	var sum = 0;
+	//var sum = 0;
     for(var i = 0;i<members.length;i++){
-        members[i].move();
-        members[i].draw();
-		sum += members[i].v.length();
+		members[i].draw();
+		members[i].move();
+		//console.log(members.length);
+		//sum += members[i].v.length();
     }
-	sum /= members.length;
-	velocityLine.append(new Date().getTime(), sum);
+	//sum /= members.length;
+	//velocityLine.append(new Date().getTime(), sum);
 
 }

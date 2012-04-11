@@ -24,9 +24,9 @@
 	}
 </style>
 <script src="game.js"></script>
-<canvas width="800" height="800" id="drawing" style="display: inline-block; position: relative; border:1px solid #c3c3c3;"></canvas>
+<canvas width="1200" height="900" id="drawing" style="display: inline-block; position: relative; border:1px solid #c3c3c3;"></canvas>
+<button id="toggle" type="button">Show/Hide</button>
 <div class="sidebar">
-
 	<div class="slider">
 		<p>
 			<label for="gravity-amount">Vertical Gravity:</label>
@@ -43,12 +43,33 @@
 		<div id="gravity-pos-slider"></div>
 	</div>
 	
-	<div class="graphs">
+	<!--<div class="graphs">
 		<canvas id="graph" width="400" height="100" style="border:1px solid #c3c3c3;"></canvas>
-	</div>
-</div>
-<div class="footer">
+	</div>-->
 	
+		
+
+
+
+	<div class="mouse">
+
+	
+
+
+	<div id="radios">
+		<input type="radio" id="spawn" name="radio" /><label for="spawn">Spawn</label>
+		<input type="radio" id="attract" name="radio" checked="checked" /><label for="attract">Attract</label>
+		<input type="radio" id="subtract" name="radio" /><label for="subtract">Subtract</label>
+		<input type="radio" id="add" name="radio" /> <label for="add">Add</label>
+	</div>
+
+
+	</div><!-- End mouse -->
+	
+	
+</div> <!--sidebar-->
+<div class="footer">
+
 
 </div>
 	
